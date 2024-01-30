@@ -1,8 +1,5 @@
-/*
- * SPDX-FileCopyrightText: 2010-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: CC0-1.0
- */
+#include <inttypes.h>
+#include <stdio.h>
 
 #include "esp_chip_info.h"
 #include "esp_flash.h"
@@ -10,8 +7,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
-#include <inttypes.h>
-#include <stdio.h>
+
+#include "Logging.h"
+#include "LED.h"
+#include "Command.h"
 
 extern "C" void app_main(void) {
   printf("Hello world!\n");
@@ -50,5 +49,44 @@ extern "C" void app_main(void) {
   }
   printf("Restarting now.\n");
   fflush(stdout);
+
+  Trace M(event_ids::Main);
+
+  Trace B(event_ids::BlinkLED);
+  for (int I = 0; I < 3; ++I) {
+    // TODO
+  }
+
+  LEDs.resize(MaxLEDs);
+
+  {
+    Trace T(event_ids::InitialSetup);
+    for (size_t J = 0; J < MaxPorts; ++J) {
+      size_t Index = 0;
+      while (true) {
+        if (Index >= MaxLEDs)
+          break;
+        LEDs.Strips[J].setBlinking(Index);
+        LEDs.Strips[J].LEDs[Index++] = RGBColor(10, 0, 0);
+        if (Index >= MaxLEDs)
+          break;
+        LEDs.Strips[J].LEDs[Index++] = RGBColor(0, 10, 0);
+        if (Index >= MaxLEDs)
+          break;
+        LEDs.Strips[J].LEDs[Index++] = RGBColor(0, 0, 10);
+      }
+    }
+  }
+
+  size_t Time = 0;
+
+  while (true) {
+    Trace T(event_ids::MainLoopIteration, Time);
+    Command::parse();
+    LEDs.render(Time);
+    // miosix::Thread::sleep(10);
+    ++Time;
+  }
+
   esp_restart();
 }
